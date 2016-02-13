@@ -22,50 +22,55 @@ def telekom():
     pass
 
 
-@telekom.command(name='login')
+@telekom.command()
 @click.argument('login', envvar='TELEKOM_LOGIN')
 @click.argument('password', envvar='TELEKOM_PASSWORD')
-def make_session(login, password):
+def login(login, password):
     """Login to telekom.hu with TELEKOM_LOGIN and TELEKOM_PASSWORD shell environment variables."""
-    sess = requests.Session()
-    sess.post(LOGIN_URL, data={"service": "TF-pwd", "logonId": login, "password": password})
     try:
-        save_session(sess)
+        make_session(login, password)
     except IOError:
         os.mkdir(SCRIPT_DIR)
-        save_session(sess)
-    click.echo("Success!")
+        make_session(login, password)
+    else:
+        click.echo("Success!")
 
 
-def save_session(session):
+def make_session(login, password):
+    session = requests.Session()
+    session.post(LOGIN_URL, data={"service": "TF-pwd", "logonId": login, "password": password})
     with open(SESSION_FILE, 'wb') as f:
         pickle.dump(session, f)
 
 
-def load_session():
+def download_page():
     with open(SESSION_FILE, 'rb') as f:
-        return pickle.load(f)
+        session = pickle.load(f)
+    return session.get(BALANCE_URL).content
 
 
-def get_limit(page_content):
-    root = etree.HTML(page_content)
+def get_limit_from_page(html):
+    root = etree.HTML(html)
     size_in_bytes = root.xpath(LIMIT_ELEMENT)[0]
     human_readable = humanize.naturalsize(int(size_in_bytes), binary=True)
     return human_readable, size_in_bytes
+
+
+def get_balance():
+    html = download_page()
+    hr, sib = get_limit_from_page(html)
+    return "Balance: {} ({})".format(hr, sib)
+
+
+def get_platypus_balance():
+    return 'NOTIFICATION:' + get_balance()
 
 
 @telekom.command(name="limit")
 @click.option('--platypus', is_flag=True)
 def print_limit(platypus=False):
     """Shows mobile data limit balance left in human readable form and bytes."""
-    session = load_session()
-    page_content = session.get(BALANCE_URL).content
-    hr, sib = get_limit(page_content)
-    balance_text = "Balance: {} ({})".format(hr, sib)
-    if platypus:
-        click.echo('NOTIFICATION:' + balance_text)
-    else:
-        click.echo(balance_text)
+    click.echo(get_platypus_balance() if platypus else get_balance())
 
 
 if __name__ == '__main__':
