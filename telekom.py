@@ -11,7 +11,6 @@ from lxml import etree
 
 LOGIN_URL = "https://www.telekom.hu/login/UI/Login"
 BALANCE_URL = "https://www.telekom.hu/shop/tmws/CCServiceDisplayCmd?storeId=2001&langId=-11&postpCode=HFFUP&returnURL=WSMonthlyTrafficCmd"
-# There are multiple <var class="limit"> elements, we are interested in the summary only
 LIMIT_ELEMENT = '//ul[contains(@class, "summaryRow")]//var[@class="limit"]/text()'
 SCRIPT_DIR = os.path.expanduser('~/.telekom')
 SESSION_FILE = os.path.join(SCRIPT_DIR, 'session.pickle')
@@ -51,15 +50,16 @@ def download_page():
 
 def get_limit_from_page(html):
     root = etree.HTML(html)
+    # There are multiple <var class="limit"> elements, we are interested in the summary only
     size_in_bytes = root.xpath(LIMIT_ELEMENT)[0]
-    human_readable = humanize.naturalsize(int(size_in_bytes), binary=True)
-    return human_readable, size_in_bytes
+    return size_in_bytes
 
 
 def get_balance():
     html = download_page()
-    hr, sib = get_limit_from_page(html)
-    return "Balance: {} ({})".format(hr, sib)
+    size_in_bytes = get_limit_from_page(html)
+    human_readable = humanize.naturalsize(int(size_in_bytes), binary=True)
+    return "Balance: {} ({})".format(size_in_bytes, human_readable)
 
 
 def get_platypus_balance():
