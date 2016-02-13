@@ -55,12 +55,17 @@ def get_limit(page_content):
 
 
 @telekom.command(name="limit")
-def print_limit():
+@click.option('--platypus', is_flag=True)
+def print_limit(platypus=False):
     """Shows mobile data limit balance left in human readable form and bytes."""
     session = load_session()
     page_content = session.get(BALANCE_URL).content
     hr, sib = get_limit(page_content)
-    click.echo("Balance: {} ({})".format(hr, sib))
+    balance_text = "Balance: {} ({})".format(hr, sib)
+    if platypus:
+        click.echo('NOTIFICATION:' + balance_text)
+    else:
+        click.echo(balance_text)
 
 
 if __name__ == '__main__':
