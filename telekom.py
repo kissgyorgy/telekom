@@ -11,9 +11,16 @@ from lxml import etree
 
 LOGIN_URL = "https://www.telekom.hu/login/UI/Login"
 BALANCE_URL = "https://www.telekom.hu/shop/tmws/CCServiceDisplayCmd?storeId=2001&langId=-11&postpCode=HFFUP&returnURL=WSMonthlyTrafficCmd"
+# utf-8 encoded str
+SESSION_EXPIRED_MESSAGE = 'BELÉPÉS A SZOLGÁLTATÁS MEGRENDELÉSÉHEZ'
 LIMIT_ELEMENT = '//ul[contains(@class, "summaryRow")]//var[@class="limit"]/text()'
 SCRIPT_DIR = os.path.expanduser('~/.telekom')
 SESSION_FILE = os.path.join(SCRIPT_DIR, 'session.pickle')
+
+
+class NotLoggedInError(Exception):
+    """Raised when user is not logged in or the session expired."""
+    message = 'Session expired!'
 
 
 def make_session(login, password):
@@ -28,7 +35,11 @@ def download_page():
     """Restore the session from the pickled file and download the balance page."""
     with open(SESSION_FILE, 'rb') as f:
         session = pickle.load(f)
-    return session.get(BALANCE_URL).content
+    res = session.get(BALANCE_URL)
+    if SESSION_EXPIRED_MESSAGE in res.content:
+        raise NotLoggedInError
+    else:
+        return res.content
 
 
 def get_limit_from_page(html):
