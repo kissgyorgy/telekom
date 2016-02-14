@@ -27,14 +27,20 @@ def make_session(login, password):
     """Log in and store the pickled requests session in file."""
     session = requests.Session()
     session.post(LOGIN_URL, data={"service": "TF-pwd", "logonId": login, "password": password})
+    if not os.path.isdir(SCRIPT_DIR):
+        os.mkdir(SCRIPT_DIR)
     with open(SESSION_FILE, 'wb') as f:
         pickle.dump(session, f)
 
 
-def download_page():
-    """Restore the session from the pickled file and download the balance page."""
+def load_session():
+    """Restore the session from the pickled file."""
     with open(SESSION_FILE, 'rb') as f:
-        session = pickle.load(f)
+        return pickle.load(f)
+
+
+def download_page(session):
+    """Download the balance page with the given session."""
     res = session.get(BALANCE_URL)
     if SESSION_EXPIRED_MESSAGE in res.content:
         raise NotLoggedInError
@@ -51,17 +57,18 @@ def get_limit_from_page(html):
 
 
 def get_balance():
-    html = download_page()
+    session = load_session()
+    html = download_page(session)
     size_in_bytes = get_limit_from_page(html)
     human_readable = humanize.naturalsize(int(size_in_bytes), binary=True)
     return "Balance: {} ({})".format(size_in_bytes, human_readable)
 
 
-def get_platypus_balance():
+def get_message(message, is_platypus=False):
     """Makes OS X notification if wrapped with Platypus.
     See: http://www.sveinbjorn.org/files/manpages/PlatypusDocumentation.html#10-2
     """
-    return 'NOTIFICATION:' + get_balance()
+    return 'NOTIFICATION:' + message if is_platypus else message
 
 
 @click.group()
@@ -72,22 +79,21 @@ def telekom():
 @telekom.command()
 @click.argument('login', envvar='TELEKOM_LOGIN')
 @click.argument('password', envvar='TELEKOM_PASSWORD')
-def login(login, password):
+@click.option('--platypus', 'is_platypus', is_flag=True)
+def login(login, password, is_platypus):
     """Login to telekom.hu with TELEKOM_LOGIN and TELEKOM_PASSWORD shell environment variables."""
-    try:
-        make_session(login, password)
-    except IOError:
-        os.mkdir(SCRIPT_DIR)
-        make_session(login, password)
-    else:
-        click.echo("Success!")
+    make_session(login, password)
+    click.echo(get_message("Success!", is_platypus))
 
 
 @telekom.command()
-@click.option('--platypus', is_flag=True)
-def limit(platypus=False):
+@click.option('--platypus', 'is_platypus', is_flag=True)
+def limit(is_platypus=False):
     """Shows mobile data limit balance left in human readable form and bytes."""
-    click.echo(get_platypus_balance() if platypus else get_balance())
+    try:
+        click.echo(get_message(get_balance(), is_platypus))
+    except NotLoggedInError as e:
+        click.echo(get_message(e.message, is_platypus))
 
 
 if __name__ == '__main__':
