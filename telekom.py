@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import os
+import time
 import pickle
+import subprocess
 import click
 import requests
 import humanize
@@ -17,6 +19,11 @@ LIMIT_ELEMENT = '//ul[contains(@class, "summaryRow")]//var[@class="limit"]/text(
 SCRIPT_DIR = os.path.expanduser('~/.telekom')
 SESSION_FILE = os.path.join(SCRIPT_DIR, 'session.pickle')
 
+# STICK_URL = 'http://192.168.0.1'
+STICK_URL = 'http://w800.home'
+# default value?
+PROFILE_ID = 16
+WEB_CONNECTION_APP = '/Volumes/Web Connection/Web Connection.app'
 
 class NotLoggedInError(Exception):
     """Raised when user is not logged in or the session expired."""
@@ -71,6 +78,34 @@ def get_message(message, is_platypus=False):
     return 'NOTIFICATION:' + message if is_platypus else message
 
 
+def is_connection_ok():
+    try:
+        return requests.get(STICK_URL).ok
+    except requests.ConnectionError:
+        return False
+
+
+def wait_for_web_connection_mount():
+    while True:
+        try:
+            subprocess.check_output(['open', '-a', WEB_CONNECTION_APP], stderr=subprocess.STDOUT)
+            click.echo()
+            break
+        except subprocess.CalledProcessError:
+            time.sleep(1)
+            click.echo('.', nl=False)
+
+
+def wait_for_boot():
+    click.echo('Waiting for stick to boot...')
+
+    while not is_connection_ok():
+        click.echo('.', nl=False)
+        time.sleep(1)
+
+    click.echo()
+
+
 @click.group()
 def telekom():
     """Command line application for interacting with the http://www.telekom.hu website."""
@@ -94,6 +129,28 @@ def limit(is_platypus=False):
         click.echo(get_message(get_balance(), is_platypus))
     except NotLoggedInError as e:
         click.echo(get_message(e.message, is_platypus))
+
+
+@telekom.command()
+@click.argument('username', envvar='TELEKOM_STICK_USERNAME')
+@click.argument('password', envvar='TELEKOM_STICK_PASSWORD')
+@click.argument('pin', envvar='TELEKOM_STICK_PIN')
+def connect(username, password, pin):
+    """Connect to the internet with the Alcatel 4G LTE modem."""
+    if not is_connection_ok():
+        click.echo('Waiting for Web Connection app...')
+        wait_for_web_connection_mount()
+        wait_for_boot()
+
+    click.echo('Logging in...')
+    requests.post(STICK_URL + '/goform/setLogin', {'username': username, 'password': password})
+    click.echo('Setting PIN...')
+    requests.post(STICK_URL + '/goform/unlockPIN', {'pin': pin})
+    click.echo('Connecting...')
+    requests.post(STICK_URL + '/goform/setWanConnect', {'profile_id': PROFILE_ID})
+    click.echo('Logging out...')
+    requests.post(STICK_URL + '/goform/setLogout')
+    click.echo('Done.')
 
 
 if __name__ == '__main__':
