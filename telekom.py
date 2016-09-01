@@ -8,11 +8,10 @@ import subprocess
 import click
 import requests
 import humanize
-from lxml import etree
 
 
 LOGIN_URL = "https://www.telekom.hu/login/UI/Login"
-BALANCE_URL = "https://www.telekom.hu/shop/tmws/CCServiceDisplayCmd?storeId=2001&langId=-11&postpCode=HFFUP&returnURL=WSMonthlyTrafficCmd"
+BALANCE_URL = "https://www.telekom.hu/shop/tmws/CCServiceDisplayCmd?storeId=2001&langId=-11&postpCode=HFFUP&returnURL=WSMonthlyTrafficCmd"  # noqa
 # utf-8 encoded str
 SESSION_EXPIRED_MESSAGE = 'BELÉPÉS A SZOLGÁLTATÁS MEGRENDELÉSÉHEZ'
 LIMIT_ELEMENT = '//ul[contains(@class, "summaryRow")]//var[@class="limit"]/text()'
@@ -23,6 +22,7 @@ STICK_URL = 'http://192.168.0.1'
 # default value?
 PROFILE_ID = 16
 WEB_CONNECTION_APP = '/Volumes/Web Connection/Web Connection.app'
+
 
 class NotLoggedInError(Exception):
     """Raised when user is not logged in or the session expired."""
@@ -91,13 +91,11 @@ def wait_for_web_connection_mount():
             click.echo()
             break
         except subprocess.CalledProcessError:
-            time.sleep(1)
             click.echo('.', nl=False)
+            time.sleep(1)
 
 
 def wait_for_boot():
-    click.echo('Waiting for stick to boot...')
-
     while not is_connection_ok():
         click.echo('.', nl=False)
         time.sleep(1)
@@ -136,9 +134,11 @@ def limit(is_platypus=False):
 @click.argument('pin', envvar='TELEKOM_STICK_PIN')
 def connect(username, password, pin):
     """Connect to the internet with the Alcatel 4G LTE modem."""
+    click.echo('Checking connection...')
     if not is_connection_ok():
         click.echo('Waiting for Web Connection app...')
         wait_for_web_connection_mount()
+        click.echo('Waiting for stick to boot...')
         wait_for_boot()
 
     click.echo('Logging in...')
