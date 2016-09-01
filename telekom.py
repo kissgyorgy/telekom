@@ -18,9 +18,8 @@ SESSION_EXPIRED_MESSAGE = 'BELÉPÉS A SZOLGÁLTATÁS MEGRENDELÉSÉHEZ'
 LIMIT_ELEMENT = '//ul[contains(@class, "summaryRow")]//var[@class="limit"]/text()'
 SCRIPT_DIR = os.path.expanduser('~/.telekom')
 SESSION_FILE = os.path.join(SCRIPT_DIR, 'session.pickle')
-
-# STICK_URL = 'http://192.168.0.1'
-STICK_URL = 'http://w800.home'
+# IP address is always available, w800.home sometimes not
+STICK_URL = 'http://192.168.0.1'
 # default value?
 PROFILE_ID = 16
 WEB_CONNECTION_APP = '/Volumes/Web Connection/Web Connection.app'
