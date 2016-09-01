@@ -152,5 +152,11 @@ def connect(username, password, pin):
     click.echo('Done.')
 
 
+@telekom.command()
+@click.argument('state', type=click.Choice(['on', 'off']))
+def wifi(state='on'):
+    click.echo('Turning wifi ' + state)
+
+
 if __name__ == '__main__':
     telekom()
